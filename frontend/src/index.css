@@ -1,0 +1,88 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-slate-100 text-slate-800 antialiased select-none font-sans overflow-hidden;
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+  }
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Custom styling for route buttons */
+.btn-route {
+  width: 95px;
+  height: 34px;
+  min-width: 95px;
+  min-height: 34px;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease-in-out;
+  cursor: pointer;
+}
+
+/* Recargar button - blue theme matching python */
+.btn-recargar {
+  background-color: #2563eb;
+  color: #ffffff;
+  border: 2px solid #1d4ed8;
+}
+.btn-recargar:hover {
+  background-color: #1d4ed8;
+}
+
+/* Dark gray route buttons */
+.btn-dark-gray {
+  background-color: #4b5563;
+  color: #ffffff;
+  border: 2px solid #374151;
+}
+.btn-dark-gray:hover {
+  background-color: #374151;
+}
+
+/* Big AD / RE buttons (37pt text) */
+.btn-big-class {
+  height: 70px;
+  font-size: 37pt;
+  font-weight: 900;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+}
+
+/* Submenu section colors (15% opacity tint backgrounds) */
+.bg-pink-15 {
+  background-color: #FCE7F3; /* Soft 15% pink tint */
+  border-color: #FBCFE8;
+}
+
+.bg-yellow-15 {
+  background-color: #FEF9C3; /* Soft 15% yellow tint */
+  border-color: #FEF08A;
+}

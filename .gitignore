@@ -1,0 +1,37 @@
+# Executables & Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+build/bin/
+
+# Frontend dependencies & build artifacts
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+.pnpm-store/
+
+# Local settings & configuration with potential sensitive data
+settings.json
+*.env
+*.env.local
+*.env.*.local
+
+# Logs and temporary files
+*.log
+*.tmp
+scratch/
+.system_generated/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE & Editor configs
+.vscode/
+.idea/
+*.swp
+*.swo
