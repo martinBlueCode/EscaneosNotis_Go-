@@ -22,6 +22,7 @@ settings.json
 # Logs and temporary files
 *.log
 *.tmp
+*.mjs
 scratch/
 .system_generated/
 

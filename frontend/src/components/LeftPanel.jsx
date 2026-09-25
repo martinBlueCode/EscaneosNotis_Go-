@@ -1,5 +1,13 @@
 import React, { useState } from 'react';
 
+const getTodayLocalDate = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export default function LeftPanel({
   expedienteData,
   onChangeExpediente,
@@ -126,7 +134,7 @@ export default function LeftPanel({
       return;
     }
 
-    const fechaEjec = expedienteData.fechaEjecucion || new Date().toISOString().split('T')[0];
+    const fechaEjec = expedienteData.fechaEjecucion || getTodayLocalDate();
     const siglas = item.sigla;
 
     let nombreFinal = '';
@@ -390,12 +398,29 @@ export default function LeftPanel({
           Enviados:
         </span>
         {sentExpedientes && sentExpedientes.length > 0 ? (
-          <div className="space-y-1 max-h-28 overflow-y-auto">
-            {sentExpedientes.map((expStr, idx) => (
-              <span key={idx} className="text-sm font-black text-emerald-950 block break-all font-mono">
-                {expStr}
-              </span>
-            ))}
+          <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
+            {sentExpedientes.map((item, idx) => {
+              const expName = typeof item === 'object' ? item.expediente : item;
+              const fecha = typeof item === 'object' && item.fecha_envio ? item.fecha_envio : '';
+              const rutas = typeof item === 'object' && item.rutas_detalle ? item.rutas_detalle : (typeof item === 'object' && item.rutasDetalle ? item.rutasDetalle : []);
+
+              let tooltipLines = [`Expediente: ${expName}`];
+              if (fecha) tooltipLines.push(`Fecha de envío: ${fecha}`);
+              if (rutas && rutas.length > 0) {
+                tooltipLines.push(`\nRutas donde fue colocado:\n• ${rutas.join('\n• ')}`);
+              }
+              const tooltipText = tooltipLines.join('\n');
+
+              return (
+                <div
+                  key={idx}
+                  title={tooltipText}
+                  className="text-xs font-mono font-black text-emerald-950 block break-all bg-emerald-100/70 hover:bg-emerald-200/90 px-2 py-1 rounded-md cursor-help transition-all shadow-xs border border-emerald-300/60"
+                >
+                  {idx + 1}. {expName} {fecha && <span className="text-[10px] font-normal text-slate-500 float-right ml-1">{fecha.split(' ')[0]}</span>}
+                </div>
+              );
+            })}
           </div>
         ) : (
           <span className="text-sm font-semibold text-slate-400 block">

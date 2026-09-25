@@ -4,6 +4,7 @@ export default function FileList({ files, selectedFile, selectedFiles = [], onSe
   const [editingPath, setEditingPath] = useState(null);
   const [editName, setEditName] = useState('');
   const inputRef = useRef(null);
+  const isSavingRef = useRef(false);
 
   useEffect(() => {
     if (editingPath && inputRef.current) {
@@ -19,30 +20,27 @@ export default function FileList({ files, selectedFile, selectedFiles = [], onSe
 
   const handleStartRename = (e, file) => {
     e.stopPropagation();
+    isSavingRef.current = false;
     setEditingPath(file.path);
     // Strip .pdf extension if present for editing ease
-    const baseName = file.name.endsWith('.pdf') || file.name.endsWith('.PDF')
-      ? file.name.slice(0, -4)
-      : file.name;
+    const baseName = file.name.replace(/(\.pdf)+$/i, '');
     setEditName(baseName);
   };
 
   const handleSaveRename = (file) => {
-    if (!editingPath) return;
+    if (!editingPath || isSavingRef.current) return;
+    isSavingRef.current = true;
 
-    let trimmed = editName.trim();
+    let trimmed = editName.trim().replace(/(\.pdf)+$/i, '');
     if (!trimmed) {
       setEditingPath(null);
+      isSavingRef.current = false;
       return;
     }
 
-    // Always ensure .pdf extension
-    if (!trimmed.toLowerCase().endsWith('.pdf')) {
-      trimmed += '.pdf';
-    }
-
-    if (trimmed !== file.name && onRenameFile) {
-      onRenameFile(file.path, trimmed);
+    const finalName = `${trimmed}.pdf`;
+    if (finalName !== file.name && onRenameFile) {
+      onRenameFile(file.path, finalName);
     }
     setEditingPath(null);
   };
@@ -52,6 +50,7 @@ export default function FileList({ files, selectedFile, selectedFiles = [], onSe
       e.preventDefault();
       handleSaveRename(file);
     } else if (e.key === 'Escape') {
+      isSavingRef.current = false;
       setEditingPath(null);
     }
   };

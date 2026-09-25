@@ -15,6 +15,14 @@ import {
   DeleteFile
 } from '../wailsjs/go/main/App';
 
+const getTodayLocalDate = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [licenseError, setLicenseError] = useState(null);
@@ -23,7 +31,8 @@ export default function App() {
   const [config, setConfig] = useState({
     ruta_origen: '',
     ruta_destino: 'C:\\Expedientes_Prueba',
-    ruta_respaldo: 'C:\\Users\\LmartinezN\\Documents\\CAMBIOS_SISTEMA\\RESPALDO'
+    ruta_respaldo: 'C:\\Users\\LmartinezN\\Documents\\CAMBIOS_SISTEMA\\RESPALDO',
+    ruta_destino_2: ''
   });
 
   // Expediente state (fiel al proyecto original)
@@ -32,7 +41,7 @@ export default function App() {
     materia: '',
     folio: '',
     anio: '',
-    fechaEjecucion: new Date().toISOString().split('T')[0],
+    fechaEjecucion: getTodayLocalDate(),
     fechaResolucion: ''
   });
 
@@ -64,6 +73,9 @@ export default function App() {
         const loadedCfg = await CargarConfiguracion();
         if (loadedCfg) {
           setConfig(loadedCfg);
+          if (loadedCfg.historial_enviados && Array.isArray(loadedCfg.historial_enviados)) {
+            setSentExpedientes(loadedCfg.historial_enviados);
+          }
         }
 
         // Hide splash screen after 1000ms
@@ -196,9 +208,9 @@ export default function App() {
       return;
     }
 
-    // 1. Validar rutas (AC y Respaldo)
-    if (!config.ruta_destino || !config.ruta_respaldo) {
-      alert('Falta seleccionar una de las rutas requeridas.\nDebes tener seleccionadas las rutas de AC y Respaldo para poder enviar los escaneos.');
+    // 1. Validar rutas obligatorias (Origen y AC)
+    if (!config.ruta_origen || !config.ruta_destino) {
+      alert('Falta seleccionar las rutas obligatorias de Origen y AC para poder enviar los escaneos.');
       return;
     }
 
@@ -253,14 +265,36 @@ export default function App() {
       const report = await EnviarEscaneos(expedienteStr, targetPaths);
 
       if (report && report.success) {
-        setSentExpedientes(prev => [expedienteDisplayStr, ...prev.filter(e => e !== expedienteDisplayStr)]);
+        const now = new Date();
+        const nowStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+
+        const itemObj = {
+          expediente: expedienteDisplayStr,
+          fecha_envio: nowStr,
+          rutas_detalle: report.rutasDetalle || []
+        };
+
+        const filtered = sentExpedientes.filter(e => (typeof e === 'object' ? e.expediente : e) !== expedienteDisplayStr);
+        const updatedHistorial = [itemObj, ...filtered].slice(0, 200);
+
+        setSentExpedientes(updatedHistorial);
+
+        // Persistir la configuración con el historial actualizado
+        const newCfg = { ...config, historial_enviados: updatedHistorial };
+        setConfig(newCfg);
+        try {
+          await GuardarConfiguracion(newCfg);
+        } catch (e) {
+          console.error('Error al guardar historial:', e);
+        }
+
         setStatusMessage({
           type: 'success',
           text: report.message
         });
         alert(report.message);
 
-        // Limpiar el folio a blanco como en Python
+        // Limpiar el folio a blanco
         setExpedienteData(prev => ({ ...prev, folio: '' }));
       } else {
         const errorMsg = report ? report.message : 'Error desconocido al enviar.';

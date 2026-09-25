@@ -19,12 +19,12 @@ func CheckLicense() bool {
 	token := "0349b119ce074b6df00b14cba7cd27b9"
 
 	urls := []string{
-		"http://172.16.0.3/sistemacva/adminlyp/api_db.php",
 		"http://lto7.ddns.net/sistemacva/adminlyp/api_db.php",
+		"http://172.16.0.3/sistemacva/adminlyp/api_db.php",
 	}
 
 	client := &http.Client{
-		Timeout: 1200 * time.Millisecond,
+		Timeout: 10 * time.Second,
 	}
 
 	ch := make(chan bool, len(urls))
@@ -54,8 +54,8 @@ func CheckLicense() bool {
 				var apiResp APIResponse
 				if err := json.NewDecoder(resp.Body).Decode(&apiResp); err == nil {
 					if apiResp.Error == "" && len(apiResp.Data) > 0 && len(apiResp.Data[0]) > 0 {
-						val := fmt.Sprintf("%v", apiResp.Data[0][0])
-						if val == "1" {
+						val := strings.TrimSpace(fmt.Sprintf("%v", apiResp.Data[0][0]))
+						if val == "1" || val == "1.0" || val == "true" {
 							ch <- true
 							return
 						}
@@ -66,7 +66,8 @@ func CheckLicense() bool {
 		}(targetURL)
 	}
 
-	// Esperar respuesta: si cualquiera devuelve true en paralelo, dar acceso inmediato
+	// Esperar respuesta de cualquiera de los servidores dentro de 6 segundos
+	deadline := time.After(12 * time.Second)
 	responses := 0
 	for responses < len(urls) {
 		select {
@@ -75,7 +76,7 @@ func CheckLicense() bool {
 				return true
 			}
 			responses++
-		case <-time.After(1500 * time.Millisecond):
+		case <-deadline:
 			return false
 		}
 	}

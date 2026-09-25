@@ -1,20 +1,20 @@
 {
-    "$schema":  "https://wails.io/schemas/config.v2.json",
-    "name":  "Escaneos MB 0.2",
-    "outputfilename":  "Escaneos MB 0.2",
-    "frontend:install":  "npm install",
-    "frontend:build":  "npm run build",
-    "frontend:dev:watcher":  "npm run dev",
-    "frontend:dev:serverUrl":  "auto",
-    "author":  {
-                   "name":  "DeepMind AI",
-                   "email":  "antigravity@google.com"
-               },
-    "info":  {
-                 "companyName":  "BlueCore",
-                 "productName":  "Escaneos MB 0.2",
-                 "productVersion":  "0.2",
-                 "copyright":  "Copyright © 2026",
-                 "comments":  "Clasificador de Escaneos y Notificaciones en Go + Wails v2"
-             }
+    "$schema": "https://wails.io/schemas/config.v2.json",
+    "name": "Escaneos MB 0.9",
+    "outputfilename": "Escaneos_MB_0.9",
+    "frontend:install": "npm install",
+    "frontend:build": "npm run build",
+    "frontend:dev:watcher": "npm run dev",
+    "frontend:dev:serverUrl": "auto",
+    "author": {
+        "name": "DeepMind AI",
+        "email": "antigravity@google.com"
+    },
+    "info": {
+        "companyName": "BlueCore",
+        "productName": "Escaneos MB 0.9",
+        "productVersion": "0.9",
+        "copyright": "Copyright © 2026",
+        "comments": "Clasificador de Escaneos y Notificaciones en Go + Wails v2"
+    }
 }

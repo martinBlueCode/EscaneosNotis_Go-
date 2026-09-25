@@ -29,6 +29,8 @@ type SendReport struct {
 	ArchivosEnviados int      `json:"archivosEnviados"`
 	RutaAC           string   `json:"rutaAC"`
 	RutaRespaldo     string   `json:"rutaRespaldo"`
+	RutaDestino2     string   `json:"rutaDestino2"`
+	RutasDetalle     []string `json:"rutasDetalle"`
 	Errores          []string `json:"errores"`
 }
 
@@ -210,7 +212,7 @@ func ObtenerRutaRespaldoCalendario(exp *ExpedienteData, respaldoBasePath string,
 	return rutaCompleta, nil
 }
 
-func EnviarArchivosDoble(expediente string, pdfPaths []string, acBasePath string, respaldoBasePath string) (*SendReport, error) {
+func EnviarArchivosMultiple(expediente string, pdfPaths []string, acBasePath string, respaldoBasePath string, destino2BasePath string) (*SendReport, error) {
 	expData, err := ValidarExpediente(expediente)
 	if err != nil {
 		return &SendReport{Success: false, Message: err.Error()}, err
@@ -229,15 +231,38 @@ func EnviarArchivosDoble(expediente string, pdfPaths []string, acBasePath string
 		}
 	}
 
-	// Rutas destino
-	rutaAC, err := ObtenerRutaAC(expData, acBasePath)
-	if err != nil {
-		return &SendReport{Success: false, Message: fmt.Sprintf("Error al crear ruta en AC: %v", err)}, err
+	// 1. Ruta AC (Obligatoria)
+	var rutaAC string
+	if acBasePath != "" {
+		r, err := ObtenerRutaAC(expData, acBasePath)
+		if err != nil {
+			return &SendReport{Success: false, Message: fmt.Sprintf("Error al crear ruta en AC: %v", err)}, err
+		}
+		rutaAC = r
+	} else {
+		return &SendReport{Success: false, Message: "Falta seleccionar la ruta obligatoria de AC."}, fmt.Errorf("Falta seleccionar ruta AC")
 	}
 
-	rutaResp, err := ObtenerRutaRespaldoCalendario(expData, respaldoBasePath, time.Now())
-	if err != nil {
-		return &SendReport{Success: false, Message: fmt.Sprintf("Error al crear ruta en Respaldo: %v", err)}, err
+	// 2. Ruta Respaldo (Opcional)
+	var rutaResp string
+	if respaldoBasePath != "" {
+		if _, err := os.Stat(respaldoBasePath); err == nil {
+			r, err := ObtenerRutaRespaldoCalendario(expData, respaldoBasePath, time.Now())
+			if err == nil {
+				rutaResp = r
+			}
+		}
+	}
+
+	// 3. Ruta Destino 2 (Opcional, crea o reutiliza la subcarpeta con el expediente completo)
+	var rutaDest2 string
+	if destino2BasePath != "" {
+		if _, err := os.Stat(destino2BasePath); err == nil {
+			targetSubdir := filepath.Join(destino2BasePath, expData.NombreCarpeta)
+			if err := os.MkdirAll(targetSubdir, 0755); err == nil {
+				rutaDest2 = targetSubdir
+			}
+		}
 	}
 
 	archivosEnviados := 0
@@ -250,27 +275,69 @@ func EnviarArchivosDoble(expediente string, pdfPaths []string, acBasePath string
 		}
 
 		baseName := filepath.Base(p)
+		failCopy := false
 
-		// 1. Copiar a Respaldo
-		targetResp := filepath.Join(rutaResp, baseName)
-		targetResp = evitarColision(targetResp)
-		if err := copiarArchivo(p, targetResp); err != nil {
-			errores = append(errores, fmt.Sprintf("Error al copiar a Respaldo %s: %v", baseName, err))
+		// Copia 1: A Respaldo (Si está activo)
+		if rutaResp != "" {
+			targetResp := filepath.Join(rutaResp, baseName)
+			targetResp = evitarColision(targetResp)
+			if err := copiarArchivo(p, targetResp); err != nil {
+				errores = append(errores, fmt.Sprintf("Error al copiar a Respaldo (%s): %v", baseName, err))
+				failCopy = true
+			}
+		}
+
+		// Copia 2: A Destino 2 (Si está activo)
+		if rutaDest2 != "" {
+			targetD2 := filepath.Join(rutaDest2, baseName)
+			targetD2 = evitarColision(targetD2)
+			if err := copiarArchivo(p, targetD2); err != nil {
+				errores = append(errores, fmt.Sprintf("Error al copiar a Destino 2 (%s): %v", baseName, err))
+				failCopy = true
+			}
+		}
+
+		// Si falló el copiado en alguna de las rutas secundarias, NO MOVER para no perder el archivo de origen
+		if failCopy {
+			errores = append(errores, fmt.Sprintf("Se conservó el archivo %s en origen para evitar pérdidas.", baseName))
 			continue
 		}
 
-		// 2. Mover a AC
+		// Traslado final: MOVER a AC (vacía la carpeta origen)
 		targetAC := filepath.Join(rutaAC, baseName)
 		targetAC = evitarColision(targetAC)
 		if err := moverArchivo(p, targetAC); err != nil {
-			errores = append(errores, fmt.Sprintf("Error al mover a AC %s: %v", baseName, err))
+			errores = append(errores, fmt.Sprintf("Error al mover a AC (%s): %v", baseName, err))
 			continue
 		}
 
 		archivosEnviados++
 	}
 
-	msg := fmt.Sprintf("%d ARCHIVO(S) ENVIADO(S) EXITOSAMENTE A AC Y RESPALDO\n\n• AC: %s\n• Respaldo: %s", archivosEnviados, rutaAC, rutaResp)
+	// Detalle de rutas seleccionadas para evidencia
+	var rutasDetalle []string
+	if rutaAC != "" {
+		rutasDetalle = append(rutasDetalle, fmt.Sprintf("AC: %s", rutaAC))
+	}
+	if rutaResp != "" {
+		rutasDetalle = append(rutasDetalle, fmt.Sprintf("Respaldo: %s", rutaResp))
+	}
+	if rutaDest2 != "" {
+		rutasDetalle = append(rutasDetalle, fmt.Sprintf("Destino 2: %s", rutaDest2))
+	}
+
+	var lineasReporte []string
+	if len(rutasDetalle) == 1 {
+		lineasReporte = append(lineasReporte, fmt.Sprintf("Se enviaron (%d) archivo(s) a 1 ruta:", archivosEnviados))
+	} else {
+		lineasReporte = append(lineasReporte, fmt.Sprintf("Se enviaron (%d) archivo(s) a %d rutas:", archivosEnviados, len(rutasDetalle)))
+	}
+
+	for _, r := range rutasDetalle {
+		lineasReporte = append(lineasReporte, fmt.Sprintf("• %s", r))
+	}
+
+	msg := strings.Join(lineasReporte, "\n")
 
 	return &SendReport{
 		Success:          archivosEnviados > 0,
@@ -278,8 +345,14 @@ func EnviarArchivosDoble(expediente string, pdfPaths []string, acBasePath string
 		ArchivosEnviados: archivosEnviados,
 		RutaAC:           rutaAC,
 		RutaRespaldo:     rutaResp,
+		RutaDestino2:     rutaDest2,
+		RutasDetalle:     rutasDetalle,
 		Errores:          errores,
 	}, nil
+}
+
+func EnviarArchivosDoble(expediente string, pdfPaths []string, acBasePath string, respaldoBasePath string) (*SendReport, error) {
+	return EnviarArchivosMultiple(expediente, pdfPaths, acBasePath, respaldoBasePath, "")
 }
 
 func ListPDFs(folderPath string) ([]FileInfo, error) {

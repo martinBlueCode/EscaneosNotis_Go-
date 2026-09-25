@@ -5,11 +5,19 @@ import (
 	"os"
 )
 
+type SentItem struct {
+	Expediente   string   `json:"expediente"`
+	FechaEnvio   string   `json:"fecha_envio"`
+	RutasDetalle []string `json:"rutas_detalle"`
+}
+
 type Settings struct {
-	Version      string `json:"version"`
-	RutaOrigen   string `json:"ruta_origen"`
-	RutaDestino  string `json:"ruta_destino"`
-	RutaRespaldo string `json:"ruta_respaldo"`
+	Version           string     `json:"version"`
+	RutaOrigen        string     `json:"ruta_origen"`
+	RutaDestino       string     `json:"ruta_destino"`
+	RutaRespaldo      string     `json:"ruta_respaldo"`
+	RutaDestino2      string     `json:"ruta_destino_2"`
+	HistorialEnviados []SentItem `json:"historial_enviados"`
 }
 
 const SettingsFile = "settings.json"

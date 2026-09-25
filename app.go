@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"strings"
+	"time"
 	"encoding/base64"
 	"fmt"
 	"os"
@@ -37,6 +39,7 @@ func (a *App) VerificarLicencia() bool {
 }
 
 func (a *App) GetSettings() config.Settings {
+	a.settings = config.LoadSettings()
 	return a.settings
 }
 
@@ -81,7 +84,21 @@ func (a *App) RenameFile(oldPath string, newName string) (string, error) {
 
 	dir := filepath.Dir(oldPath)
 	ext := filepath.Ext(oldPath)
-	cleanName := fmt.Sprintf("%s%s", newName, ext)
+
+	cleanNewName := strings.TrimSpace(newName)
+	for {
+		lower := strings.ToLower(cleanNewName)
+		lowerExt := strings.ToLower(ext)
+		if len(lowerExt) > 0 && strings.HasSuffix(lower, lowerExt) {
+			cleanNewName = cleanNewName[:len(cleanNewName)-len(lowerExt)]
+		} else if strings.HasSuffix(lower, ".pdf") {
+			cleanNewName = cleanNewName[:len(cleanNewName)-4]
+		} else {
+			break
+		}
+	}
+
+	cleanName := fmt.Sprintf("%s%s", cleanNewName, ext)
 	newPath := filepath.Join(dir, cleanName)
 
 	if oldPath == newPath {
@@ -106,12 +123,33 @@ func (a *App) DeleteFile(filePath string) error {
 }
 
 func (a *App) SendFiles(expediente string, pdfPaths []string) (*filemanager.SendReport, error) {
-	return filemanager.EnviarArchivosDoble(
+	report, err := filemanager.EnviarArchivosMultiple(
 		expediente,
 		pdfPaths,
 		a.settings.RutaDestino,
 		a.settings.RutaRespaldo,
+		a.settings.RutaDestino2,
 	)
+	if err == nil && report != nil && report.Success {
+		now := time.Now().Format("02/01/2006 15:04:05")
+		newItem := config.SentItem{
+			Expediente:   expediente,
+			FechaEnvio:   now,
+			RutasDetalle: report.RutasDetalle,
+		}
+		var filtered []config.SentItem
+		for _, item := range a.settings.HistorialEnviados {
+			if item.Expediente != expediente {
+				filtered = append(filtered, item)
+			}
+		}
+		a.settings.HistorialEnviados = append([]config.SentItem{newItem}, filtered...)
+		if len(a.settings.HistorialEnviados) > 200 {
+			a.settings.HistorialEnviados = a.settings.HistorialEnviados[:200]
+		}
+		_ = config.SaveSettings(a.settings)
+	}
+	return report, err
 }
 
 func (a *App) EnviarEscaneos(expediente string, pdfPaths []string) (*filemanager.SendReport, error) {
